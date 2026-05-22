@@ -4,6 +4,7 @@ import { useDrafts } from '../hooks/useDrafts';
 import { usePublishDraft } from '../hooks/usePublishDraft';
 import PostCardGrid from '../components/saved/PostCardGrid';
 import PostCard from '../components/saved/PostCard';
+import PostCardSkeleton from '../components/saved/PostCardSkeleton';
 
 function SavedPostsPage() {
   const navigate = useNavigate();
@@ -49,7 +50,11 @@ function SavedPostsPage() {
       </header>
 
       {draftsQuery.isLoading && (
-        <p className="text-sm text-gray-500">로딩 중...</p>
+        <PostCardGrid>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <PostCardSkeleton key={i} />
+          ))}
+        </PostCardGrid>
       )}
       {draftsQuery.isError && (
         <p className="text-sm text-red-600">{draftsQuery.error.message}</p>

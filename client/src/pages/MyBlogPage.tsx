@@ -10,6 +10,7 @@ import { useUpdateDraft } from '../hooks/useUpdateDraft';
 import RepoSearchInput from '../components/repo/RepoSearchInput';
 import BranchSelect from '../components/repo/BranchSelect';
 import CommitList from '../components/commit/CommitList';
+import CommitListSkeleton from '../components/commit/CommitListSkeleton';
 import DraftEditor, { type DraftPatch } from '../components/editor/DraftEditor';
 
 function MyBlogPage() {
@@ -141,9 +142,7 @@ function MyBlogPage() {
 
           <div>
             <h2 className="mb-2 text-sm font-medium text-gray-700">최근 커밋</h2>
-            {commitsQuery.isLoading && (
-              <div className="text-sm text-gray-500">로딩 중...</div>
-            )}
+            {commitsQuery.isLoading && <CommitListSkeleton />}
             {commitsQuery.data && (
               <CommitList
                 commits={commitsQuery.data}
