@@ -37,14 +37,40 @@ function PostCard({ draft, onEdit, onPublish, isPublishing = false }: Props) {
           >
             수정하기
           </button>
-          <button
-            type="button"
-            onClick={onPublish}
-            disabled={!onPublish || isPublished || isPublishing}
-            className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isPublished ? '발행됨' : isPublishing ? '발행 중...' : '발행하기'}
-          </button>
+          {isPublished && draft.publishedUrl ? (
+            <a
+              href={draft.publishedUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1 rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800"
+            >
+              GitHub에서 보기
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={onPublish}
+              disabled={!onPublish || isPublished || isPublishing}
+              className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isPublished ? '발행됨' : isPublishing ? '발행 중...' : '발행하기'}
+            </button>
+          )}
         </div>
       </div>
     </article>
