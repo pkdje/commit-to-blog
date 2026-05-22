@@ -401,3 +401,29 @@ describe('POST /api/drafts/:id/publish', () => {
     expect(arg.sha).toBeUndefined();
   });
 });
+
+describe('DELETE /api/drafts/:id', () => {
+  const seedDraft = async () => {
+    stubGetCommit();
+    stubLLMText(validDraftJson);
+    const res = await request(app).post('/api/drafts/generate').send(validBody);
+    return res.body.data as { id: string };
+  };
+
+  it('deletes the draft and returns { ok: true }', async () => {
+    const draft = await seedDraft();
+    expect(draftStore.list()).toHaveLength(1);
+
+    const res = await request(app).delete(`/api/drafts/${draft.id}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ ok: true });
+    expect(draftStore.list()).toHaveLength(0);
+  });
+
+  it('returns 404 NOT_FOUND for unknown id', async () => {
+    const res = await request(app).delete('/api/drafts/nonexistent-id');
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+});

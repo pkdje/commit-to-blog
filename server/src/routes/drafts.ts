@@ -173,6 +173,17 @@ router.put('/:id', (req, res) => {
   res.json({ data: updated });
 });
 
+router.delete('/:id', (req, res) => {
+  const ok = draftStore.delete(req.params.id);
+  if (!ok) {
+    res.status(404).json({
+      error: { code: 'NOT_FOUND', message: 'draft not found' },
+    });
+    return;
+  }
+  res.json({ data: { ok: true } });
+});
+
 router.post('/generate', async (req, res) => {
   const bodyResult = generateBodySchema.safeParse(req.body);
   if (!bodyResult.success) {
