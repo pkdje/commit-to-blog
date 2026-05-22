@@ -1,10 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 
-const { getCommit, generateContent } = vi.hoisted(() => ({
-  getCommit: vi.fn(),
-  generateContent: vi.fn(),
-}));
+const { getCommit, generateContent, getContent, createOrUpdateFileContents } = vi.hoisted(
+  () => ({
+    getCommit: vi.fn(),
+    generateContent: vi.fn(),
+    getContent: vi.fn(),
+    createOrUpdateFileContents: vi.fn(),
+  }),
+);
 
 vi.mock('@octokit/rest', () => ({
   Octokit: class MockOctokit {
@@ -13,6 +17,8 @@ vi.mock('@octokit/rest', () => ({
       listBranches: vi.fn(),
       listCommits: vi.fn(),
       getCommit,
+      getContent,
+      createOrUpdateFileContents,
     };
   },
 }));
@@ -274,5 +280,124 @@ describe('PUT /api/drafts/:id', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('draft');
     expect(res.body.data.publishedUrl).toBeUndefined();
+  });
+});
+
+describe('POST /api/drafts/:id/publish', () => {
+  const PUBLISHED_URL =
+    'https://github.com/owner/blog/blob/main/posts/2026-05-22-abc1234.md';
+
+  const seedDraft = async () => {
+    stubGetCommit();
+    stubLLMText(validDraftJson);
+    const res = await request(app).post('/api/drafts/generate').send(validBody);
+    return res.body.data as { id: string; title: string; body: string };
+  };
+
+  beforeEach(() => {
+    // Default: file does not exist on remote (new publish path)
+    const notFound = Object.assign(new Error('Not Found'), { status: 404 });
+    getContent.mockRejectedValue(notFound);
+    createOrUpdateFileContents.mockResolvedValue({
+      data: {
+        content: { html_url: PUBLISHED_URL },
+        commit: { html_url: 'https://github.com/owner/blog/commit/abc' },
+      },
+    });
+  });
+
+  it('returns 404 for nonexistent draft', async () => {
+    const res = await request(app)
+      .post('/api/drafts/nonexistent/publish')
+      .send({ targetRepo: 'owner/blog' });
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns 400 NO_BLOG_REPO when env has no BLOG_REPO and body has no targetRepo', async () => {
+    const draft = await seedDraft();
+    const res = await request(app).post(`/api/drafts/${draft.id}/publish`).send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('NO_BLOG_REPO');
+  });
+
+  it('returns 400 INVALID_INPUT for malformed targetRepo', async () => {
+    const draft = await seedDraft();
+    const res = await request(app)
+      .post(`/api/drafts/${draft.id}/publish`)
+      .send({ targetRepo: 'not-a-repo' });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_INPUT');
+  });
+
+  it('publishes draft with body targetRepo and returns updated draft', async () => {
+    const draft = await seedDraft();
+    const res = await request(app)
+      .post(`/api/drafts/${draft.id}/publish`)
+      .send({ targetRepo: 'owner/blog' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('published');
+    expect(res.body.data.publishedUrl).toBe(PUBLISHED_URL);
+  });
+
+  it('uses default path posts/YYYY-MM-DD-{shortSha}.md when not provided', async () => {
+    const draft = await seedDraft();
+    await request(app)
+      .post(`/api/drafts/${draft.id}/publish`)
+      .send({ targetRepo: 'owner/blog' });
+
+    const arg = createOrUpdateFileContents.mock.calls[0]?.[0];
+    expect(arg.path).toMatch(/^posts\/\d{4}-\d{2}-\d{2}-[a-f0-9]{7}\.md$/);
+  });
+
+  it('uses custom path when provided', async () => {
+    const draft = await seedDraft();
+    await request(app)
+      .post(`/api/drafts/${draft.id}/publish`)
+      .send({ targetRepo: 'owner/blog', path: 'custom/dir/file.md' });
+
+    const arg = createOrUpdateFileContents.mock.calls[0]?.[0];
+    expect(arg.path).toBe('custom/dir/file.md');
+  });
+
+  it('includes YAML frontmatter and body in markdown content', async () => {
+    const draft = await seedDraft();
+    await request(app)
+      .post(`/api/drafts/${draft.id}/publish`)
+      .send({ targetRepo: 'owner/blog' });
+
+    const arg = createOrUpdateFileContents.mock.calls[0]?.[0];
+    const md = Buffer.from(arg.content, 'base64').toString('utf-8');
+    expect(md).toMatch(/^---\n/);
+    expect(md).toContain('title:');
+    expect(md).toContain('branch: main');
+    expect(md).toContain('commit:');
+    expect(md).toContain(draft.body);
+  });
+
+  it('passes existing sha when file already exists (update path)', async () => {
+    const draft = await seedDraft();
+    getContent.mockReset();
+    getContent.mockResolvedValue({
+      data: { sha: 'existing-blob-sha', type: 'file' },
+    });
+
+    await request(app)
+      .post(`/api/drafts/${draft.id}/publish`)
+      .send({ targetRepo: 'owner/blog' });
+
+    const arg = createOrUpdateFileContents.mock.calls[0]?.[0];
+    expect(arg.sha).toBe('existing-blob-sha');
+  });
+
+  it('omits sha when file does not exist (create path)', async () => {
+    const draft = await seedDraft();
+    await request(app)
+      .post(`/api/drafts/${draft.id}/publish`)
+      .send({ targetRepo: 'owner/blog' });
+
+    const arg = createOrUpdateFileContents.mock.calls[0]?.[0];
+    expect(arg.sha).toBeUndefined();
   });
 });
