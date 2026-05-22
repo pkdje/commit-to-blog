@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Draft } from 'shared';
 import { useRepos } from '../hooks/useRepos';
 import { useBranches } from '../hooks/useBranches';
 import { useCommits } from '../hooks/useCommits';
 import { useGenerateDraft } from '../hooks/useGenerateDraft';
+import { useUpdateDraft } from '../hooks/useUpdateDraft';
 import RepoSearchInput from '../components/repo/RepoSearchInput';
 import BranchSelect from '../components/repo/BranchSelect';
 import CommitList from '../components/commit/CommitList';
@@ -16,10 +18,12 @@ function MyBlogPage() {
   const [selectedSha, setSelectedSha] = useState<string | null>(null);
   const [editedDraft, setEditedDraft] = useState<Draft | null>(null);
 
+  const navigate = useNavigate();
   const reposQuery = useRepos(repoQuery);
   const branchesQuery = useBranches(repo);
   const commitsQuery = useCommits(repo, branch);
   const generate = useGenerateDraft();
+  const update = useUpdateDraft();
 
   useEffect(() => {
     if (branchesQuery.data?.length && !branch) {
@@ -49,6 +53,25 @@ function MyBlogPage() {
 
   const handleDraftChange = (patch: DraftPatch) => {
     setEditedDraft((d) => (d ? { ...d, ...patch } : d));
+  };
+
+  const handleSave = () => {
+    if (!editedDraft) return;
+    update.mutate(
+      {
+        id: editedDraft.id,
+        patch: {
+          title: editedDraft.title,
+          summary: editedDraft.summary,
+          body: editedDraft.body,
+        },
+      },
+      {
+        onSuccess: () => {
+          navigate('/saved');
+        },
+      },
+    );
   };
 
   return (
@@ -180,6 +203,9 @@ function MyBlogPage() {
                   <p className="text-sm text-red-600">{generate.error.message}</p>
                 )}
                 {editedDraft && <DraftEditor draft={editedDraft} onChange={handleDraftChange} />}
+                {update.isError && (
+                  <p className="mt-2 text-sm text-red-600">{update.error.message}</p>
+                )}
               </div>
 
               {editedDraft && (
@@ -187,15 +213,16 @@ function MyBlogPage() {
                   <button
                     type="button"
                     onClick={handleCancel}
-                    className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    disabled={update.isPending}
+                    className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     취소
                   </button>
                   <button
                     type="button"
-                    disabled
-                    title="다음 commit에서 저장 + 발행 활성화됩니다"
-                    className="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white opacity-70"
+                    onClick={handleSave}
+                    disabled={update.isPending}
+                    className="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -212,7 +239,7 @@ function MyBlogPage() {
                       <path d="M12 19V5" />
                       <path d="m5 12 7-7 7 7" />
                     </svg>
-                    블로그 포스트로 저장 및 게시
+                    {update.isPending ? '저장 중...' : '블로그 포스트로 저장 및 게시'}
                   </button>
                 </footer>
               )}
