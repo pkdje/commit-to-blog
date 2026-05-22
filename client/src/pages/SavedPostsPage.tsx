@@ -46,17 +46,51 @@ function SavedPostsPage() {
       {draftsQuery.isError && (
         <p className="text-sm text-red-600">{draftsQuery.error.message}</p>
       )}
-      {draftsQuery.data && draftsQuery.data.length === 0 && (
-        <p className="text-sm text-gray-500">아직 저장된 포스트가 없습니다.</p>
-      )}
-      {draftsQuery.data && draftsQuery.data.length > 0 && (
+      {draftsQuery.data && (
         <PostCardGrid>
           {draftsQuery.data.map((d) => (
             <PostCard key={d.id} draft={d} />
           ))}
+          <NewDraftSlot onClick={() => navigate('/')} />
         </PostCardGrid>
       )}
     </main>
+  );
+}
+
+function NewDraftSlot({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex h-full min-h-[280px] flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-gray-300 bg-white p-6 text-center transition-colors hover:border-gray-400 hover:bg-gray-50"
+    >
+      <span className="grid h-12 w-12 place-items-center rounded-md bg-blue-50 text-blue-700">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6" />
+          <path d="M12 18v-6" />
+          <path d="M9 15h6" />
+        </svg>
+      </span>
+      <div>
+        <div className="text-sm font-semibold text-gray-900">새 초안 작성</div>
+        <div className="mt-1 text-xs text-gray-500">
+          커밋 로그를 불러와 포스트를 생성하세요
+        </div>
+      </div>
+    </button>
   );
 }
 
