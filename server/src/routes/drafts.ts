@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import type { Draft } from 'shared';
+import { env } from '../env.js';
 import { githubClient } from '../services/githubClient.js';
 import { geminiClient } from '../services/geminiClient.js';
 import { draftStore } from '../services/draftStore.js';
@@ -44,6 +46,31 @@ function parseDraftJson(raw: string): z.infer<typeof blogDraftSchema> | null {
   return null;
 }
 
+const publishBodySchema = z.object({
+  targetRepo: z
+    .string()
+    .regex(/^[^/]+\/[^/]+$/, 'targetRepo must be "owner/name"')
+    .optional(),
+  path: z.string().min(1).optional(),
+});
+
+function serializeDraft(draft: Draft): string {
+  const date = draft.createdAt.slice(0, 10);
+  return [
+    '---',
+    `title: ${JSON.stringify(draft.title)}`,
+    `summary: ${JSON.stringify(draft.summary)}`,
+    `date: ${date}`,
+    `repo: ${draft.repo}`,
+    `branch: ${draft.branch}`,
+    `commit: ${draft.commitSha.slice(0, 7)}`,
+    '---',
+    '',
+    draft.body,
+    '',
+  ].join('\n');
+}
+
 const updateBodySchema = z
   .object({
     title: z.string().min(1).optional(),
@@ -67,6 +94,60 @@ router.get('/:id', (req, res) => {
     return;
   }
   res.json({ data: draft });
+});
+
+router.post('/:id/publish', async (req, res) => {
+  const draft = draftStore.get(req.params.id);
+  if (!draft) {
+    res.status(404).json({
+      error: { code: 'NOT_FOUND', message: 'draft not found' },
+    });
+    return;
+  }
+
+  const bodyResult = publishBodySchema.safeParse(req.body ?? {});
+  if (!bodyResult.success) {
+    const first = bodyResult.error.issues[0];
+    res.status(400).json({
+      error: {
+        code: 'INVALID_INPUT',
+        message: first ? `${first.path.join('.') || '(root)'}: ${first.message}` : 'invalid input',
+      },
+    });
+    return;
+  }
+
+  const targetRepo = bodyResult.data.targetRepo ?? env.BLOG_REPO;
+  if (!targetRepo) {
+    res.status(400).json({
+      error: {
+        code: 'NO_BLOG_REPO',
+        message: 'BLOG_REPO env var is not set and no targetRepo provided',
+      },
+    });
+    return;
+  }
+
+  const date = draft.createdAt.slice(0, 10);
+  const shortSha = draft.commitSha.slice(0, 7);
+  const path = bodyResult.data.path ?? `posts/${date}-${shortSha}.md`;
+
+  const md = serializeDraft(draft);
+  const commitMessage = `Publish blog: ${draft.title}`;
+
+  const publishedUrl = await githubClient.putContent(targetRepo, path, md, commitMessage);
+
+  const updated = draftStore.update(draft.id, {
+    status: 'published',
+    publishedUrl,
+  });
+  if (!updated) {
+    res.status(404).json({
+      error: { code: 'NOT_FOUND', message: 'draft not found' },
+    });
+    return;
+  }
+  res.json({ data: updated });
 });
 
 router.put('/:id', (req, res) => {
