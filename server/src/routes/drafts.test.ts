@@ -195,3 +195,84 @@ describe('GET /api/drafts/:id', () => {
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
 });
+
+describe('PUT /api/drafts/:id', () => {
+  const seedDraft = async () => {
+    stubGetCommit();
+    stubLLMText(validDraftJson);
+    const res = await request(app).post('/api/drafts/generate').send(validBody);
+    return res.body.data as { id: string; title: string; summary: string; body: string; updatedAt: string };
+  };
+
+  it('updates title only and preserves other fields', async () => {
+    const draft = await seedDraft();
+    const res = await request(app)
+      .put(`/api/drafts/${draft.id}`)
+      .send({ title: 'New Title' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.title).toBe('New Title');
+    expect(res.body.data.summary).toBe(draft.summary);
+    expect(res.body.data.body).toBe(draft.body);
+  });
+
+  it('updates summary and body together', async () => {
+    const draft = await seedDraft();
+    const res = await request(app)
+      .put(`/api/drafts/${draft.id}`)
+      .send({ summary: 'updated summary', body: 'updated body' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.summary).toBe('updated summary');
+    expect(res.body.data.body).toBe('updated body');
+    expect(res.body.data.title).toBe(draft.title);
+  });
+
+  it('bumps updatedAt timestamp', async () => {
+    const draft = await seedDraft();
+    await new Promise((r) => setTimeout(r, 5));
+    const res = await request(app)
+      .put(`/api/drafts/${draft.id}`)
+      .send({ title: 'New' });
+
+    expect(res.body.data.updatedAt > draft.updatedAt).toBe(true);
+  });
+
+  it('returns 404 NOT_FOUND for unknown id', async () => {
+    const res = await request(app)
+      .put('/api/drafts/nonexistent-id')
+      .send({ title: 'X' });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns 400 INVALID_INPUT for empty patch', async () => {
+    const draft = await seedDraft();
+    const res = await request(app).put(`/api/drafts/${draft.id}`).send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_INPUT');
+  });
+
+  it('returns 400 INVALID_INPUT for empty string field', async () => {
+    const draft = await seedDraft();
+    const res = await request(app)
+      .put(`/api/drafts/${draft.id}`)
+      .send({ title: '' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_INPUT');
+  });
+
+  it('ignores status and publishedUrl fields (PUT does not allow them)', async () => {
+    const draft = await seedDraft();
+    const res = await request(app)
+      .put(`/api/drafts/${draft.id}`)
+      .send({ title: 'New', status: 'published', publishedUrl: 'https://evil.example' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('draft');
+    expect(res.body.data.publishedUrl).toBeUndefined();
+  });
+});
