@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { Draft } from 'shared';
 import { useRepos } from '../hooks/useRepos';
 import { useBranches } from '../hooks/useBranches';
 import { useCommits } from '../hooks/useCommits';
@@ -6,13 +7,14 @@ import { useGenerateDraft } from '../hooks/useGenerateDraft';
 import RepoSearchInput from '../components/repo/RepoSearchInput';
 import BranchSelect from '../components/repo/BranchSelect';
 import CommitList from '../components/commit/CommitList';
-import AISummaryPanel from '../components/editor/AISummaryPanel';
+import DraftEditor, { type DraftPatch } from '../components/editor/DraftEditor';
 
 function MyBlogPage() {
   const [repoQuery, setRepoQuery] = useState('');
   const [repo, setRepo] = useState('');
   const [branch, setBranch] = useState('');
   const [selectedSha, setSelectedSha] = useState<string | null>(null);
+  const [editedDraft, setEditedDraft] = useState<Draft | null>(null);
 
   const reposQuery = useRepos(repoQuery);
   const branchesQuery = useBranches(repo);
@@ -25,18 +27,28 @@ function MyBlogPage() {
     }
   }, [branchesQuery.data, branch]);
 
+  useEffect(() => {
+    if (generate.data) setEditedDraft(generate.data);
+  }, [generate.data]);
+
   const selectedCommit =
     commitsQuery.data?.find((c) => c.sha === selectedSha) ?? null;
 
   const handleGenerate = (sha: string) => {
     if (!repo || !branch) return;
     setSelectedSha(sha);
+    setEditedDraft(null);
     generate.mutate({ repo, branch, sha });
   };
 
   const handleCancel = () => {
     generate.reset();
     setSelectedSha(null);
+    setEditedDraft(null);
+  };
+
+  const handleDraftChange = (patch: DraftPatch) => {
+    setEditedDraft((d) => (d ? { ...d, ...patch } : d));
   };
 
   return (
@@ -167,10 +179,10 @@ function MyBlogPage() {
                 {generate.isError && (
                   <p className="text-sm text-red-600">{generate.error.message}</p>
                 )}
-                {generate.data && <AISummaryPanel draft={generate.data} />}
+                {editedDraft && <DraftEditor draft={editedDraft} onChange={handleDraftChange} />}
               </div>
 
-              {generate.data && (
+              {editedDraft && (
                 <footer className="mt-6 flex items-center justify-end gap-3 border-t border-gray-200 pt-4">
                   <button
                     type="button"
@@ -182,7 +194,7 @@ function MyBlogPage() {
                   <button
                     type="button"
                     disabled
-                    title="2주차 발행 단계에서 활성화됩니다"
+                    title="다음 commit에서 저장 + 발행 활성화됩니다"
                     className="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white opacity-70"
                   >
                     <svg
