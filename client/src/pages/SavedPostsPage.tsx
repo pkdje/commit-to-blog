@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import type { Draft } from 'shared';
-import { useDrafts } from '../hooks/useDrafts';
+import { useDrafts, useDeleteDraft } from '../hooks/useDrafts';
 import { usePublishDraft } from '../hooks/usePublishDraft';
 import PostCardGrid from '../components/saved/PostCardGrid';
 import PostCard from '../components/saved/PostCard';
@@ -10,10 +10,16 @@ function SavedPostsPage() {
   const navigate = useNavigate();
   const draftsQuery = useDrafts();
   const publish = usePublishDraft();
+  const deleteMutation = useDeleteDraft();
 
   const handlePublish = (draft: Draft) => {
     if (!window.confirm(`"${draft.title}"을(를) 발행하시겠습니까?`)) return;
     publish.mutate({ id: draft.id });
+  };
+
+  const handleDelete = (draft: Draft) => {
+    if (!window.confirm(`"${draft.title}"을(를) 삭제하시겠습니까?`)) return;
+    deleteMutation.mutate(draft.id);
   };
 
   return (
@@ -72,7 +78,9 @@ function SavedPostsPage() {
               draft={d}
               onEdit={() => navigate(`/?draft=${d.id}`)}
               onPublish={() => handlePublish(d)}
+              onDelete={() => handleDelete(d)}
               isPublishing={publish.isPending && publish.variables?.id === d.id}
+              isDeleting={deleteMutation.isPending && deleteMutation.variables === d.id}
             />
           ))}
           <NewDraftSlot onClick={() => navigate('/')} />
