@@ -49,7 +49,11 @@ function SavedPostsPage() {
       {draftsQuery.data && (
         <PostCardGrid>
           {draftsQuery.data.map((d) => (
-            <PostCard key={d.id} draft={d} />
+            <PostCard
+              key={d.id}
+              draft={d}
+              onEdit={() => navigate(`/?draft=${d.id}`)}
+            />
           ))}
           <NewDraftSlot onClick={() => navigate('/')} />
         </PostCardGrid>

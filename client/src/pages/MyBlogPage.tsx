@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { Draft } from 'shared';
 import { useRepos } from '../hooks/useRepos';
 import { useBranches } from '../hooks/useBranches';
 import { useCommits } from '../hooks/useCommits';
+import { useDraft } from '../hooks/useDrafts';
 import { useGenerateDraft } from '../hooks/useGenerateDraft';
 import { useUpdateDraft } from '../hooks/useUpdateDraft';
 import RepoSearchInput from '../components/repo/RepoSearchInput';
@@ -19,9 +20,14 @@ function MyBlogPage() {
   const [editedDraft, setEditedDraft] = useState<Draft | null>(null);
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editDraftId = searchParams.get('draft');
+  const isEditMode = Boolean(editDraftId);
+
   const reposQuery = useRepos(repoQuery);
   const branchesQuery = useBranches(repo);
   const commitsQuery = useCommits(repo, branch);
+  const editDraftQuery = useDraft(editDraftId);
   const generate = useGenerateDraft();
   const update = useUpdateDraft();
 
@@ -35,6 +41,10 @@ function MyBlogPage() {
     if (generate.data) setEditedDraft(generate.data);
   }, [generate.data]);
 
+  useEffect(() => {
+    if (editDraftQuery.data) setEditedDraft(editDraftQuery.data);
+  }, [editDraftQuery.data]);
+
   const selectedCommit =
     commitsQuery.data?.find((c) => c.sha === selectedSha) ?? null;
 
@@ -46,6 +56,10 @@ function MyBlogPage() {
   };
 
   const handleCancel = () => {
+    if (isEditMode) {
+      navigate('/saved');
+      return;
+    }
     generate.reset();
     setSelectedSha(null);
     setEditedDraft(null);
@@ -146,18 +160,24 @@ function MyBlogPage() {
 
         {/* Right: selected commit + AI 요약 */}
         <section>
-          {!selectedCommit && (
+          {!selectedCommit && !editedDraft && !editDraftQuery.isLoading && (
             <div className="grid h-80 place-items-center rounded-lg border border-dashed border-gray-300 text-sm text-gray-500">
               왼쪽에서 커밋을 선택해 "요약 생성"을 누르세요.
             </div>
           )}
 
-          {selectedCommit && (
+          {editDraftQuery.isLoading && (
+            <div className="grid h-80 place-items-center rounded-lg border border-dashed border-gray-300 text-sm text-gray-500">
+              드래프트 불러오는 중...
+            </div>
+          )}
+
+          {(selectedCommit || editedDraft) && !editDraftQuery.isLoading && (
             <article className="rounded-lg border border-gray-200 bg-gray-50 p-6">
               <header>
                 <div className="flex items-start justify-between">
                   <span className="text-sm font-semibold text-gray-700">
-                    선택된 커밋
+                    {isEditMode ? '편집 중인 드래프트' : '선택된 커밋'}
                   </span>
                   <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-mono font-semibold text-blue-700">
                     <svg
@@ -175,31 +195,43 @@ function MyBlogPage() {
                       <circle cx="12" cy="12" r="3" />
                       <path d="M3 12h6m6 0h6" />
                     </svg>
-                    {selectedCommit.sha.slice(0, 7)}
+                    {(selectedCommit?.sha ?? editedDraft?.commitSha ?? '').slice(0, 7)}
                   </span>
                 </div>
-                <h2 className="mt-3 text-xl font-bold text-gray-900">
-                  {selectedCommit.message}
-                </h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Authored by{' '}
-                  <strong className="font-semibold text-gray-700">
-                    {selectedCommit.author}
-                  </strong>{' '}
-                  on {selectedCommit.date.slice(0, 10)}
-                </p>
+                {selectedCommit ? (
+                  <>
+                    <h2 className="mt-3 text-xl font-bold text-gray-900">
+                      {selectedCommit.message}
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Authored by{' '}
+                      <strong className="font-semibold text-gray-700">
+                        {selectedCommit.author}
+                      </strong>{' '}
+                      on {selectedCommit.date.slice(0, 10)}
+                    </p>
+                  </>
+                ) : (
+                  editedDraft && (
+                    <p className="mt-3 text-sm text-gray-500">
+                      <strong className="font-semibold text-gray-700">{editedDraft.repo}</strong>{' '}
+                      · <span className="font-mono">{editedDraft.branch}</span> ·{' '}
+                      {editedDraft.createdAt.slice(0, 10)}
+                    </p>
+                  )
+                )}
               </header>
 
               <div className="mt-6">
-                {generate.isIdle && (
+                {!isEditMode && generate.isIdle && !editedDraft && (
                   <p className="text-sm text-gray-500">
                     이 커밋의 "요약 생성" 버튼을 눌러 AI 요약을 만드세요.
                   </p>
                 )}
-                {generate.isPending && (
+                {!isEditMode && generate.isPending && (
                   <p className="text-sm text-gray-500">요약 생성 중...</p>
                 )}
-                {generate.isError && (
+                {!isEditMode && generate.isError && (
                   <p className="text-sm text-red-600">{generate.error.message}</p>
                 )}
                 {editedDraft && <DraftEditor draft={editedDraft} onChange={handleDraftChange} />}
