@@ -44,6 +44,16 @@ function parseDraftJson(raw: string): z.infer<typeof blogDraftSchema> | null {
   return null;
 }
 
+const updateBodySchema = z
+  .object({
+    title: z.string().min(1).optional(),
+    summary: z.string().min(1).optional(),
+    body: z.string().min(1).optional(),
+  })
+  .refine((v) => v.title !== undefined || v.summary !== undefined || v.body !== undefined, {
+    message: 'at least one of title, summary, body must be provided',
+  });
+
 router.get('/', (_req, res) => {
   res.json({ data: draftStore.list() });
 });
@@ -57,6 +67,29 @@ router.get('/:id', (req, res) => {
     return;
   }
   res.json({ data: draft });
+});
+
+router.put('/:id', (req, res) => {
+  const bodyResult = updateBodySchema.safeParse(req.body);
+  if (!bodyResult.success) {
+    const first = bodyResult.error.issues[0];
+    res.status(400).json({
+      error: {
+        code: 'INVALID_INPUT',
+        message: first ? `${first.path.join('.') || '(root)'}: ${first.message}` : 'invalid input',
+      },
+    });
+    return;
+  }
+
+  const updated = draftStore.update(req.params.id, bodyResult.data);
+  if (!updated) {
+    res.status(404).json({
+      error: { code: 'NOT_FOUND', message: 'draft not found' },
+    });
+    return;
+  }
+  res.json({ data: updated });
 });
 
 router.post('/generate', async (req, res) => {
