@@ -1,5 +1,22 @@
 import type { Draft } from 'shared';
 
+const THUMBNAIL_GRADIENTS = [
+  'bg-gradient-to-br from-gray-700 via-gray-600 to-gray-400',
+  'bg-gradient-to-tr from-gray-800 via-gray-500 to-gray-300',
+  'bg-gradient-to-bl from-gray-600 via-gray-400 to-gray-200',
+  'bg-gradient-to-tl from-gray-500 via-gray-700 to-gray-300',
+  'bg-gradient-to-r from-gray-400 via-gray-600 to-gray-800',
+] as const;
+
+function pickGradient(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  }
+  const idx = Math.abs(hash) % THUMBNAIL_GRADIENTS.length;
+  return THUMBNAIL_GRADIENTS[idx] ?? THUMBNAIL_GRADIENTS[0];
+}
+
 type Props = {
   draft: Draft;
   onEdit?: () => void;
@@ -10,6 +27,7 @@ type Props = {
 function PostCard({ draft, onEdit, onPublish, isPublishing = false }: Props) {
   const date = draft.createdAt.slice(0, 10).replace(/-/g, '.');
   const isPublished = draft.status === 'published';
+  const thumbnailGradient = pickGradient(draft.id);
 
   return (
     <article className="overflow-hidden rounded-lg border border-gray-200 bg-white">
@@ -23,7 +41,7 @@ function PostCard({ draft, onEdit, onPublish, isPublishing = false }: Props) {
         <h3 className="mt-3 text-base font-bold text-gray-900">{draft.title}</h3>
       </div>
 
-      <div className="mt-4 aspect-video bg-gradient-to-br from-gray-200 to-gray-300" />
+      <div className={`mt-4 aspect-video ${thumbnailGradient}`} />
 
       <div className="px-5 pb-5 pt-4">
         <p className="line-clamp-3 text-sm text-gray-600">{draft.summary}</p>
