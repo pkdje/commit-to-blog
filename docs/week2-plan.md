@@ -13,10 +13,10 @@
 ## 체크리스트 (각 항목 = 1 commit)
 
 ### 편집기 + 드래프트 수정
-- [ ] `feat(server): PUT /api/drafts/:id (title/summary/body update)`
-- [ ] `feat(client): DraftEditor textarea with 글자수 카운터`
-- [ ] `feat(client): "취소" / "블로그 포스트로 저장" 버튼 동작`
-- [ ] `test(server): PUT /api/drafts/:id integration test`
+- [x] `feat(server): PUT /api/drafts/:id (title/summary/body update)`
+- [x] `feat(client): DraftEditor textarea with 글자수 카운터`
+- [x] `feat(client): "취소" / "블로그 포스트로 저장" 버튼 동작`
+- [x] `test(server): PUT /api/drafts/:id integration test`
 
 ### Saved Posts 카드 그리드
 - [ ] `feat(client): useDrafts hook (list/get/delete)`
@@ -57,7 +57,7 @@
 
 | 날짜 | 진행 | 비고 |
 |---|---|---|
-| — | — | — |
+| 2026-05-22 | 편집기 + 드래프트 수정 블록 4항목 완료 (PUT 라우트·DraftEditor·저장 버튼·통합 테스트 7개 추가, 누적 42 tests) | 다음: Saved Posts 카드 그리드 |
 
 ## 회고 메모 (PR 작성용)
 
