@@ -77,4 +77,39 @@ export const githubClient = {
       diffSummary,
     };
   },
+
+  async putContent(
+    repo: string,
+    path: string,
+    content: string,
+    message: string,
+  ): Promise<string> {
+    const [owner, name] = repo.split('/');
+
+    let sha: string | undefined;
+    try {
+      const existing = await octokit.repos.getContent({
+        owner: owner!,
+        repo: name!,
+        path,
+      });
+      if (!Array.isArray(existing.data) && 'sha' in existing.data) {
+        sha = existing.data.sha;
+      }
+    } catch (e: unknown) {
+      const status = (e as { status?: number } | null)?.status;
+      if (status !== 404) throw e;
+    }
+
+    const result = await octokit.repos.createOrUpdateFileContents({
+      owner: owner!,
+      repo: name!,
+      path,
+      message,
+      content: Buffer.from(content, 'utf-8').toString('base64'),
+      sha,
+    });
+
+    return result.data.content?.html_url ?? result.data.commit.html_url ?? '';
+  },
 };
