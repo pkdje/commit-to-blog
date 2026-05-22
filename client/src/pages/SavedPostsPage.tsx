@@ -1,11 +1,19 @@
 import { useNavigate } from 'react-router-dom';
+import type { Draft } from 'shared';
 import { useDrafts } from '../hooks/useDrafts';
+import { usePublishDraft } from '../hooks/usePublishDraft';
 import PostCardGrid from '../components/saved/PostCardGrid';
 import PostCard from '../components/saved/PostCard';
 
 function SavedPostsPage() {
   const navigate = useNavigate();
   const draftsQuery = useDrafts();
+  const publish = usePublishDraft();
+
+  const handlePublish = (draft: Draft) => {
+    if (!window.confirm(`"${draft.title}"을(를) 발행하시겠습니까?`)) return;
+    publish.mutate({ id: draft.id });
+  };
 
   return (
     <main className="mx-auto max-w-7xl px-8 py-10">
@@ -46,6 +54,11 @@ function SavedPostsPage() {
       {draftsQuery.isError && (
         <p className="text-sm text-red-600">{draftsQuery.error.message}</p>
       )}
+      {publish.isError && (
+        <p className="mb-4 text-sm text-red-600">
+          발행 실패: {publish.error.message}
+        </p>
+      )}
       {draftsQuery.data && (
         <PostCardGrid>
           {draftsQuery.data.map((d) => (
@@ -53,6 +66,8 @@ function SavedPostsPage() {
               key={d.id}
               draft={d}
               onEdit={() => navigate(`/?draft=${d.id}`)}
+              onPublish={() => handlePublish(d)}
+              isPublishing={publish.isPending && publish.variables?.id === d.id}
             />
           ))}
           <NewDraftSlot onClick={() => navigate('/')} />

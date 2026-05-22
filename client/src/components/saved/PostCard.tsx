@@ -4,9 +4,10 @@ type Props = {
   draft: Draft;
   onEdit?: () => void;
   onPublish?: () => void;
+  isPublishing?: boolean;
 };
 
-function PostCard({ draft, onEdit, onPublish }: Props) {
+function PostCard({ draft, onEdit, onPublish, isPublishing = false }: Props) {
   const date = draft.createdAt.slice(0, 10).replace(/-/g, '.');
   const isPublished = draft.status === 'published';
 
@@ -39,10 +40,10 @@ function PostCard({ draft, onEdit, onPublish }: Props) {
           <button
             type="button"
             onClick={onPublish}
-            disabled={!onPublish || isPublished}
+            disabled={!onPublish || isPublished || isPublishing}
             className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isPublished ? '발행됨' : '발행하기'}
+            {isPublished ? '발행됨' : isPublishing ? '발행 중...' : '발행하기'}
           </button>
         </div>
       </div>
