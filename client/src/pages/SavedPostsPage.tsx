@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import type { Draft } from 'shared';
 import { useDrafts } from '../hooks/useDrafts';
 import PostCardGrid from '../components/saved/PostCardGrid';
+import PostCard from '../components/saved/PostCard';
 
 function SavedPostsPage() {
   const navigate = useNavigate();
@@ -52,28 +52,11 @@ function SavedPostsPage() {
       {draftsQuery.data && draftsQuery.data.length > 0 && (
         <PostCardGrid>
           {draftsQuery.data.map((d) => (
-            <DraftCardStub key={d.id} draft={d} />
+            <PostCard key={d.id} draft={d} />
           ))}
         </PostCardGrid>
       )}
     </main>
-  );
-}
-
-// Lightweight placeholder card. Replaced by PostCard component in the next commit.
-function DraftCardStub({ draft }: { draft: Draft }) {
-  const date = draft.createdAt.slice(0, 10);
-  return (
-    <article className="rounded-lg border border-gray-200 bg-white p-4">
-      <div className="flex items-center justify-between">
-        <span className="rounded bg-blue-100 px-2 py-0.5 font-mono text-xs text-blue-700">
-          {draft.branch}
-        </span>
-        <span className="font-mono text-xs text-gray-500">{date}</span>
-      </div>
-      <h3 className="mt-2 font-bold text-gray-900">{draft.title}</h3>
-      <p className="mt-1 line-clamp-3 text-sm text-gray-600">{draft.summary}</p>
-    </article>
   );
 }
 
