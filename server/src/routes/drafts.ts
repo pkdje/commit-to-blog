@@ -56,14 +56,19 @@ const publishBodySchema = z.object({
 
 function serializeDraft(draft: Draft): string {
   const date = draft.createdAt.slice(0, 10);
+  // All values quoted via JSON.stringify so YAML treats them as strings:
+  // - `date: 2026-05-22` (unquoted) would be parsed as a Date object by YAML,
+  //   which then crashes when rendered as JSX child (React: "Objects are not valid as a React child")
+  // - `commit: 1234567` (all digits) would be parsed as number
+  // - `branch: yes`/`no`/`true`/`null` would be parsed as bool/null
   return [
     '---',
     `title: ${JSON.stringify(draft.title)}`,
     `summary: ${JSON.stringify(draft.summary)}`,
-    `date: ${date}`,
-    `repo: ${draft.repo}`,
-    `branch: ${draft.branch}`,
-    `commit: ${draft.commitSha.slice(0, 7)}`,
+    `date: ${JSON.stringify(date)}`,
+    `repo: ${JSON.stringify(draft.repo)}`,
+    `branch: ${JSON.stringify(draft.branch)}`,
+    `commit: ${JSON.stringify(draft.commitSha.slice(0, 7))}`,
     '---',
     '',
     draft.body,

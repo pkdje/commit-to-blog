@@ -371,7 +371,7 @@ describe('POST /api/drafts/:id/publish', () => {
     const md = Buffer.from(arg.content, 'base64').toString('utf-8');
     expect(md).toMatch(/^---\n/);
     expect(md).toContain('title:');
-    expect(md).toContain('branch: main');
+    expect(md).toContain('branch: "main"');
     expect(md).toContain('commit:');
     expect(md).toContain(draft.body);
   });
